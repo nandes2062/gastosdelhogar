@@ -11,7 +11,7 @@ export function buildShareMessage(state: AppState, monthKey: MonthKey): string {
   const activeServices = state.services.filter(s => activeIds.includes(s.id));
 
   const lines: string[] = [
-    `🏡 *Gastos del Hogar — ${monthName}*`,
+    `🐮 *Hagamos Vaquita — ${monthName}* 🏡`,
     "",
     "📋 *Resumen del mes:*",
   ];
@@ -24,16 +24,18 @@ export function buildShareMessage(state: AppState, monthKey: MonthKey): string {
       serviceLines.push(`${svc.emoji} ${svc.label}: *${formatMoney(t)}*`);
     }
   }
+  
   if (serviceLines.length === 0) {
     lines.push("_(sin montos cargados este mes)_");
   } else {
     lines.push(...serviceLines);
   }
+
   lines.push("");
   lines.push("👥 *Lo que le toca a cada uno:*");
   lines.push("");
 
-  // Desglose por persona (usando el snapshot del mes)
+  // Desglose por persona
   for (const person of participants) {
     const pay = getPayment(record, person.id);
     const parts: string[] = [];
@@ -48,12 +50,12 @@ export function buildShareMessage(state: AppState, monthKey: MonthKey): string {
       const status = pay[svc.id] ? "✅ pagado" : "⏳ pendiente";
       parts.push(`   ${svc.emoji} ${svc.label}: *${formatMoney(share)}* — ${status}`);
     }
+    
     if (parts.length === 0) continue;
 
     lines.push(`*${person.name}*`);
     lines.push(...parts);
 
-    // Solo mostrar total si tiene más de un servicio con monto cargado
     if (parts.length > 1) {
       lines.push(`   💳 *Total: ${formatMoney(personTotal)}*`);
     }
@@ -61,7 +63,8 @@ export function buildShareMessage(state: AppState, monthKey: MonthKey): string {
     lines.push("");
   }
 
-  lines.push("📲 Envío QR para realizar el pago 🙌😊");
+  lines.push("---");
+  lines.push("📲 *Envío QR para realizar el pago.* 🙌😊");
 
   return lines.join("\n").trim();
 }

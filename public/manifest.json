@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "GastosdelHogar",
-  "short_name": "GastosdelHogar",
-  "description": "Dividir gastos de gas y agua del hogar",
+  "name": "Hagamos Vaquita",
+  "short_name": "Vaquita",
+  "description": "Tu vaquita mensual, sin cuentas, sin internet, y sin enredos.",
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -29,8 +29,8 @@
       "purpose": "maskable"
     }
   ],
-  "theme_color": "#1d4ed8",
-  "background_color": "#f8fafc",
+  "theme_color": "#007AFF",
+  "background_color": "#ffffff",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

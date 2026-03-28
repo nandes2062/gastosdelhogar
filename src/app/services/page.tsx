@@ -95,20 +95,6 @@ export default function ServicesPage() {
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-black uppercase tracking-widest text-slate-400">Color</label>
-          <div className="mt-3 flex flex-wrap gap-3">
-            {THEMES.map(t => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setTheme(t)}
-                className={`flex h-10 w-10 items-center justify-center rounded-full transition-all ${getThemeDotBg(t)} ${theme === t ? 'ring-4 ring-brand-blue/30 ring-offset-2 scale-110' : 'hover:scale-105'}`}
-                title={t}
-              />
-            ))}
-          </div>
-        </div>
 
         <button
           type="submit"
@@ -194,18 +180,6 @@ function ServiceEditor({
             >
               {em}
             </button>
-          ))}
-        </div>
-      </div>
-      <div>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {THEMES.map(t => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTheme(t)}
-              className={`flex h-6 w-6 items-center justify-center rounded-full ${getThemeDotBg(t)} ${theme === t ? 'ring-2 ring-blue-400 ring-offset-2' : ''}`}
-            />
           ))}
         </div>
       </div>
