@@ -1,65 +1,198 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import { MonthHeader } from "@/components/MonthHeader";
+import { Avatar } from "@/components/Avatar";
+import { LoadingScreen } from "@/components/LoadingScreen";
+import { useAppState } from "@/context/AppStateContext";
+import {
+  getMonthRecord,
+  getPayment,
+  serviceParticipants,
+  sharePerPerson,
+} from "@/lib/billing";
+import { formatMoney } from "@/lib/format";
+import { buildShareMessage, shareWhatsAppText } from "@/lib/share";
+import {
+  paymentChipClass,
+  paymentLabelClass,
+  summaryCardClass,
+} from "@/lib/service-ui";
+import { SERVICES } from "@/lib/services";
+
+function servicesSubtitle(): string {
+  const labels = SERVICES.map((s) => s.label.toLowerCase());
+  if (labels.length <= 1) return labels[0] ?? "";
+  if (labels.length === 2) return `${labels[0]} y ${labels[1]}`;
+  return `${labels.slice(0, -1).join(", ")} y ${labels[labels.length - 1]}`;
+}
+
+export default function HomePage() {
+  const {
+    ready,
+    state,
+    selectedMonthKey,
+    goPrevMonth,
+    goNextMonth,
+    setPayment,
+  } = useAppState();
+  const [sharing, setSharing] = useState(false);
+
+  if (!ready) return <LoadingScreen />;
+
+  const record = getMonthRecord(state, selectedMonthKey);
+
+  async function onShare() {
+    setSharing(true);
+    try {
+      const text = buildShareMessage(state, selectedMonthKey);
+      await shareWhatsAppText(text);
+    } finally {
+      setSharing(false);
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="space-y-5">
+      <header>
+        <h1 className="text-lg font-bold text-slate-900">Resumen</h1>
+        <p className="text-sm text-slate-500">
+          Gastos del hogar · {servicesSubtitle()}
+        </p>
+      </header>
+
+      <MonthHeader
+        monthKey={selectedMonthKey}
+        onPrev={goPrevMonth}
+        onNext={goNextMonth}
+      />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {SERVICES.map((svc) => {
+          const total = record.totals[svc.id];
+          const participants = serviceParticipants(state.people, svc.id);
+          const each = sharePerPerson(state, selectedMonthKey, svc.id);
+          const card = summaryCardClass[svc.theme];
+          return (
+            <div key={svc.id} className={card.wrap}>
+              <p className={card.title}>{svc.label}</p>
+              <p className={card.amount}>
+                {total != null ? formatMoney(total) : "—"}
+              </p>
+              <p className={card.meta}>
+                {participants.length > 0 && total != null
+                  ? `${formatMoney(each)} c/u (${participants.length} persona${participants.length !== 1 ? "s" : ""})`
+                  : participants.length === 0
+                    ? `Nadie asignado a ${svc.label.toLowerCase()}`
+                    : "Sin monto cargado"}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      <section className="space-y-3" aria-label="Pagos por persona">
+        <h2 className="text-sm font-semibold text-slate-800">Personas</h2>
+        <ul className="space-y-3">
+          {state.people.map((person) => {
+            const pay = getPayment(record, person.id);
+            return (
+              <li
+                key={person.id}
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+              >
+                <div className="flex items-start gap-3">
+                  <Avatar name={person.name} variant="neutral" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-slate-900">{person.name}</p>
+                    <div className="mt-3 space-y-2">
+                      {SERVICES.map((svc) =>
+                        person.participatesIn[svc.id] ? (
+                          <PaymentRow
+                            key={svc.id}
+                            label={svc.label}
+                            theme={svc.theme}
+                            amountLabel={
+                              record.totals[svc.id] != null
+                                ? formatMoney(
+                                    sharePerPerson(
+                                      state,
+                                      selectedMonthKey,
+                                      svc.id,
+                                    ),
+                                  )
+                                : "Sin recibo"
+                            }
+                            disabled={record.totals[svc.id] == null}
+                            paid={pay[svc.id]}
+                            onToggle={() =>
+                              setPayment(selectedMonthKey, person.id, {
+                                [svc.id]: !pay[svc.id],
+                              })
+                            }
+                          />
+                        ) : (
+                          <p key={svc.id} className="text-xs text-slate-400">
+                            {svc.label}: no aplica
+                          </p>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
+      <button
+        type="button"
+        onClick={() => void onShare()}
+        disabled={sharing}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-green-600 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-green-700 disabled:opacity-60"
+      >
+        {sharing ? "Abriendo…" : "Compartir desglose (WhatsApp)"}
+      </button>
+    </div>
+  );
+}
+
+function PaymentRow({
+  label,
+  theme,
+  amountLabel,
+  paid,
+  disabled,
+  onToggle,
+}: {
+  label: string;
+  theme: (typeof SERVICES)[number]["theme"];
+  amountLabel: string;
+  paid: boolean;
+  disabled?: boolean;
+  onToggle: () => void;
+}) {
+  const chip = paymentChipClass(theme, paid);
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 ring-1 ring-slate-100">
+      <div>
+        <span
+          className={`text-xs font-semibold ${paymentLabelClass(theme)}`}
+        >
+          {label}
+        </span>
+        <p className="text-sm font-medium text-slate-800">{amountLabel}</p>
+      </div>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onToggle}
+        className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ${chip} disabled:cursor-not-allowed disabled:opacity-50`}
+      >
+        {paid ? "Pagado" : "Pendiente"}
+      </button>
     </div>
   );
 }
