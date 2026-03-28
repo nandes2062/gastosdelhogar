@@ -1,20 +1,32 @@
 import type {
   AppState,
   MonthKey,
+  MonthParticipant,
   MonthRecord,
   Person,
-  PersonId,
   PersonMonthPayment,
+  ServiceDef,
 } from "./types";
-import type { ServiceId } from "./services";
+import { THEMES } from "./services";
+import type { ServiceTheme } from "./services";
 import { STORAGE_KEY } from "./types";
-import { createInitialAppState } from "./initialData";
-import { defaultPersonPayment, emptyReceiptUrls, emptyTotals } from "./billing";
-import { SERVICE_IDS } from "./services";
+import { createInitialAppState, SEED_SERVICES } from "./initialData";
 
-type LegacyMonth = Record<string, unknown>;
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function receiptUrlsFromRaw(raw: LegacyMonth, keyArray: string, keyLegacy: string): string[] {
+type Raw = Record<string, unknown>;
+
+function isRaw(v: unknown): v is Raw {
+  return v != null && typeof v === "object" && !Array.isArray(v);
+}
+
+function isValidTheme(v: unknown): v is ServiceTheme {
+  return typeof v === "string" && (THEMES as readonly string[]).includes(v);
+}
+
+// ─── Legacy receipt URL helper ────────────────────────────────────────────────
+
+function receiptUrlsFromRaw(raw: Raw, keyArray: string, keyLegacy: string): string[] {
   const arr = raw[keyArray];
   if (Array.isArray(arr)) {
     return arr.filter((x): x is string => typeof x === "string" && x.length > 0);
@@ -24,135 +36,180 @@ function receiptUrlsFromRaw(raw: LegacyMonth, keyArray: string, keyLegacy: strin
   return [];
 }
 
-function isLegacyPaymentObject(o: Record<string, unknown>): boolean {
-  return "gasPaid" in o || "waterPaid" in o;
+// ─── Services normalization ───────────────────────────────────────────────────
+
+function normalizeService(raw: unknown): ServiceDef | null {
+  if (!isRaw(raw)) return null;
+  if (typeof raw.id !== "string" || typeof raw.label !== "string") return null;
+  return {
+    id:    raw.id,
+    label: raw.label,
+    emoji: typeof raw.emoji === "string" ? raw.emoji : "🏠",
+    theme: isValidTheme(raw.theme) ? raw.theme : "slate",
+  };
 }
 
+function normalizeServices(raw: unknown): ServiceDef[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(normalizeService).filter((s): s is ServiceDef => s !== null);
+}
+
+// ─── Payments normalization ───────────────────────────────────────────────────
+
 function normalizePersonPayment(raw: unknown): PersonMonthPayment {
-  const out = defaultPersonPayment();
-  if (raw == null || typeof raw !== "object") return out;
-  const o = raw as Record<string, unknown>;
-  if (isLegacyPaymentObject(o)) {
-    if (typeof o.gasPaid === "boolean") out.gas = o.gasPaid;
-    if (typeof o.waterPaid === "boolean") out.water = o.waterPaid;
+  const out: PersonMonthPayment = {};
+  if (!isRaw(raw)) return out;
+  // Legacy format
+  if ("gasPaid" in raw || "waterPaid" in raw) {
+    if (typeof raw.gasPaid  === "boolean") out.gas   = raw.gasPaid;
+    if (typeof raw.waterPaid === "boolean") out.water = raw.waterPaid;
     return out;
   }
-  for (const id of SERVICE_IDS) {
-    const v = o[id];
-    if (typeof v === "boolean") out[id] = v;
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof v === "boolean") out[k] = v;
   }
   return out;
 }
 
-function normalizePayments(raw: unknown): Record<PersonId, PersonMonthPayment> {
-  if (raw == null || typeof raw !== "object") return {};
-  const out: Record<PersonId, PersonMonthPayment> = {};
+function normalizePayments(raw: unknown): Record<string, PersonMonthPayment> {
+  if (!isRaw(raw)) return {};
+  const out: Record<string, PersonMonthPayment> = {};
   for (const [k, v] of Object.entries(raw)) {
     out[k] = normalizePersonPayment(v);
   }
   return out;
 }
 
-function isLegacyMonthShape(raw: LegacyMonth): boolean {
-  return "gasTotal" in raw || "waterTotal" in raw;
-}
+// ─── Participants normalization ───────────────────────────────────────────────
 
-/** Compatible con datos guardados antes del modelo por servicios. */
-export function normalizeMonthRecord(raw: LegacyMonth): MonthRecord {
-  if (!isLegacyMonthShape(raw) && raw.totals != null && typeof raw.totals === "object") {
-    const totals = emptyTotals();
-    const rtot = raw.totals as Record<string, unknown>;
-    for (const id of SERVICE_IDS) {
-      const t = rtot[id];
-      totals[id] =
-        typeof t === "number" || t === null ? (t as number | null) : null;
-    }
-    const receiptDataUrls = emptyReceiptUrls();
-    const rr = raw.receiptDataUrls;
-    if (rr != null && typeof rr === "object") {
-      for (const id of SERVICE_IDS) {
-        const arr = (rr as Record<string, unknown>)[id];
-        if (Array.isArray(arr)) {
-          receiptDataUrls[id] = arr.filter(
-            (x): x is string => typeof x === "string" && x.length > 0,
-          );
-        }
+function normalizeParticipants(raw: unknown): MonthParticipant[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: MonthParticipant[] = [];
+  for (const item of raw) {
+    if (!isRaw(item)) continue;
+    if (typeof item.id !== "string" || typeof item.name !== "string") continue;
+    const participatesIn: Record<string, boolean> = {};
+    if (isRaw(item.participatesIn)) {
+      for (const [k, v] of Object.entries(item.participatesIn)) {
+        participatesIn[k] = v === true;
       }
     }
+    out.push({ id: item.id, name: item.name, participatesIn });
+  }
+  return out.length > 0 ? out : undefined;
+}
+
+// ─── Month record normalization ───────────────────────────────────────────────
+
+export function normalizeMonthRecord(raw: unknown): MonthRecord {
+  const totals:          Record<string, number | null> = {};
+  const receiptDataUrls: Record<string, string[]>       = {};
+
+  if (!isRaw(raw)) {
     return {
       totals,
       receiptDataUrls,
-      payments: normalizePayments(raw.payments),
+      payments: {},
+      participants: undefined,
+      activeServiceIds: undefined,
     };
   }
 
-  const totals = emptyTotals();
-  totals.gas =
-    typeof raw.gasTotal === "number" || raw.gasTotal === null
-      ? (raw.gasTotal as number | null)
-      : null;
-  totals.water =
-    typeof raw.waterTotal === "number" || raw.waterTotal === null
-      ? (raw.waterTotal as number | null)
-      : null;
+  // Current format: raw.totals is an object
+  if (isRaw(raw.totals)) {
+    for (const [k, v] of Object.entries(raw.totals)) {
+      totals[k] = typeof v === "number" ? v : null;
+    }
+  }
+  // Legacy format: gasTotal / waterTotal
+  if ("gasTotal" in raw) {
+    totals.gas = typeof raw.gasTotal === "number" ? raw.gasTotal : null;
+  }
+  if ("waterTotal" in raw) {
+    totals.water = typeof raw.waterTotal === "number" ? raw.waterTotal : null;
+  }
 
-  const receiptDataUrls = emptyReceiptUrls();
-  receiptDataUrls.gas = receiptUrlsFromRaw(
-    raw,
-    "gasReceiptDataUrls",
-    "gasReceiptDataUrl",
-  );
-  receiptDataUrls.water = receiptUrlsFromRaw(
-    raw,
-    "waterReceiptDataUrls",
-    "waterReceiptDataUrl",
-  );
+  // Current format: raw.receiptDataUrls
+  if (isRaw(raw.receiptDataUrls)) {
+    for (const [k, v] of Object.entries(raw.receiptDataUrls)) {
+      if (Array.isArray(v)) {
+        receiptDataUrls[k] = v.filter((x): x is string => typeof x === "string");
+      }
+    }
+  }
+  // Legacy format
+  if ("gasReceiptDataUrls" in raw || "gasReceiptDataUrl" in raw) {
+    receiptDataUrls.gas = receiptUrlsFromRaw(raw, "gasReceiptDataUrls", "gasReceiptDataUrl");
+  }
+  if ("waterReceiptDataUrls" in raw || "waterReceiptDataUrl" in raw) {
+    receiptDataUrls.water = receiptUrlsFromRaw(raw, "waterReceiptDataUrls", "waterReceiptDataUrl");
+  }
+
+  // Active Service IDs
+  let activeServiceIds: string[] | undefined = undefined;
+  if (Array.isArray(raw.activeServiceIds)) {
+    activeServiceIds = raw.activeServiceIds.filter((x): x is string => typeof x === "string");
+  }
 
   return {
     totals,
     receiptDataUrls,
-    payments: normalizePayments(raw.payments),
+    payments:         normalizePayments(raw.payments),
+    participants:     normalizeParticipants(raw.participants),
+    activeServiceIds,
   };
 }
+
+// ─── Person normalization ─────────────────────────────────────────────────────
 
 function normalizePerson(raw: unknown): Person | null {
-  if (raw == null || typeof raw !== "object") return null;
-  const o = raw as Record<string, unknown>;
-  if (typeof o.id !== "string" || typeof o.name !== "string") return null;
+  if (!isRaw(raw)) return null;
+  if (typeof raw.id !== "string" || typeof raw.name !== "string") return null;
 
-  const participatesIn = defaultPersonPayment();
-  for (const id of SERVICE_IDS) {
-    participatesIn[id] = false;
-  }
+  const participatesIn: Record<string, boolean> = {};
 
-  if (o.participatesIn != null && typeof o.participatesIn === "object") {
-    const pi = o.participatesIn as Record<string, unknown>;
-    for (const id of SERVICE_IDS) {
-      participatesIn[id] = pi[id] === true;
+  if (isRaw(raw.participatesIn)) {
+    for (const [k, v] of Object.entries(raw.participatesIn)) {
+      participatesIn[k] = v === true;
     }
   } else {
-    participatesIn.gas = o.participatesInGas === true;
-    participatesIn.water = o.participatesInWater === true;
+    // Legacy
+    if (raw.participatesInGas   === true) participatesIn.gas   = true;
+    if (raw.participatesInWater === true) participatesIn.water = true;
   }
 
-  return {
-    id: o.id,
-    name: o.name,
-    participatesIn,
-  };
+  return { id: raw.id, name: raw.name, participatesIn };
 }
 
-export function normalizeAppState(parsed: AppState): AppState {
-  const months: AppState["months"] = {};
-  for (const [k, v] of Object.entries(parsed.months ?? {})) {
-    months[k as MonthKey] = normalizeMonthRecord(v as LegacyMonth);
+// ─── Full app state normalization ─────────────────────────────────────────────
+
+export function normalizeAppState(parsed: unknown): AppState {
+  const raw = isRaw(parsed) ? parsed : {};
+
+  // Services — with migration from legacy (no services field)
+  let services = normalizeServices(raw.services);
+  if (services.length === 0) {
+    // Backup viejo: reconstruir servicios base
+    services = SEED_SERVICES.map((s) => ({ ...s }));
   }
-  const peopleRaw = parsed.people;
-  const people: Person[] = Array.isArray(peopleRaw)
-    ? (peopleRaw.map(normalizePerson).filter(Boolean) as Person[])
+
+  // People
+  const people: Person[] = Array.isArray(raw.people)
+    ? (raw.people.map(normalizePerson).filter(Boolean) as Person[])
     : [];
-  return { people, months };
+
+  // Months
+  const months: AppState["months"] = {};
+  if (isRaw(raw.months)) {
+    for (const [k, v] of Object.entries(raw.months)) {
+      months[k as MonthKey] = normalizeMonthRecord(v);
+    }
+  }
+
+  return { services, people, months };
 }
+
+// ─── Load / Save ──────────────────────────────────────────────────────────────
 
 export function loadState(): AppState {
   if (typeof window === "undefined") {
@@ -165,8 +222,8 @@ export function loadState(): AppState {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
       return initial;
     }
-    const parsed = JSON.parse(raw) as AppState;
-    if (!parsed?.people || !parsed?.months) {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!isRaw(parsed) || !parsed.people || !parsed.months) {
       const initial = createInitialAppState();
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
       return initial;
@@ -176,9 +233,7 @@ export function loadState(): AppState {
     const initial = createInitialAppState();
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
     return initial;
   }
 }
@@ -187,7 +242,5 @@ export function saveState(state: AppState): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    /* quota or private mode */
-  }
+  } catch { /* quota or private mode */ }
 }

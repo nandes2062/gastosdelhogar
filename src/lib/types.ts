@@ -1,33 +1,65 @@
-import type { ServiceId } from "./services";
+import type { ServiceTheme } from "./services";
+
+export type { ServiceTheme };
 
 export type PersonId = string;
 
 export type Person = {
   id: PersonId;
   name: string;
-  /** Participación en cada servicio del catálogo */
-  participatesIn: Record<ServiceId, boolean>;
+  /** Participación en cada servicio (keyed by service id) */
+  participatesIn: Record<string, boolean>;
 };
 
 /** YYYY-MM */
 export type MonthKey = string;
 
-export type PersonMonthPayment = Record<ServiceId, boolean>;
+export type PersonMonthPayment = Record<string, boolean>;
 
-export type MonthRecord = {
-  totals: Record<ServiceId, number | null>;
-  receiptDataUrls: Record<ServiceId, string[]>;
-  payments: Record<PersonId, PersonMonthPayment>;
+/**
+ * Snapshot de una persona tal como participaba en un mes concreto.
+ */
+export type MonthParticipant = {
+  id: PersonId;
+  name: string;
+  participatesIn: Record<string, boolean>;
 };
 
-/** Actualización parcial de un mes (p. ej. solo un servicio). */
+export type MonthRecord = {
+  totals: Record<string, number | null>;
+  receiptDataUrls: Record<string, string[]>;
+  payments: Record<PersonId, PersonMonthPayment>;
+  /**
+   * Snapshot de los participantes de este mes.
+   * Si es undefined (datos viejos), se usa state.people como fallback.
+   */
+  participants?: MonthParticipant[];
+  /**
+   * Servicios habilitados expresamente para este mes.
+   * Si es undefined, se infiere según la historia o los globales.
+   */
+  activeServiceIds?: string[];
+};
+
+/** Actualización parcial de un mes. */
 export type MonthRecordPatch = {
-  totals?: Partial<Record<ServiceId, number | null>>;
-  receiptDataUrls?: Partial<Record<ServiceId, string[]>>;
+  totals?: Partial<Record<string, number | null>>;
+  receiptDataUrls?: Partial<Record<string, string[]>>;
   payments?: Record<PersonId, PersonMonthPayment>;
+  participants?: MonthParticipant[];
+  activeServiceIds?: string[];
+};
+
+/** Definición de un servicio guardado en estado (dinámico). */
+export type ServiceDef = {
+  id: string;
+  label: string;
+  emoji: string;
+  theme: ServiceTheme;
 };
 
 export type AppState = {
+  services: ServiceDef[];
   people: Person[];
   months: Record<MonthKey, MonthRecord>;
 };

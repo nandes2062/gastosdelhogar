@@ -22,9 +22,15 @@ function deepCloneWithoutImages(state: AppState): AppState {
       totals: { ...rec.totals },
       payments: JSON.parse(JSON.stringify(rec.payments)) as typeof rec.payments,
       receiptDataUrls: emptyUrls,
+      participants: rec.participants ? JSON.parse(JSON.stringify(rec.participants)) : undefined,
+      activeServiceIds: rec.activeServiceIds ? [...rec.activeServiceIds] : undefined,
     };
   }
-  return { people: JSON.parse(JSON.stringify(state.people)) as AppState["people"], months };
+  return {
+    people: JSON.parse(JSON.stringify(state.people)) as AppState["people"],
+    services: JSON.parse(JSON.stringify(state.services)) as AppState["services"],
+    months,
+  };
 }
 
 function downloadJson(data: unknown, filename: string) {

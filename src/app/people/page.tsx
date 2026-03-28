@@ -6,28 +6,35 @@ import { LoadingScreen } from "@/components/LoadingScreen";
 import { useAppState } from "@/context/AppStateContext";
 import type { Person, PersonId } from "@/lib/types";
 import { defaultPersonPayment } from "@/lib/billing";
-import { SERVICES } from "@/lib/services";
-import type { ServiceId } from "@/lib/services";
+import type { ServiceDef } from "@/lib/types";
 
-function anyParticipation(p: Record<ServiceId, boolean>): boolean {
-  return SERVICES.some((s) => p[s.id]);
+function anyParticipation(p: Record<string, boolean>, services: ServiceDef[]): boolean {
+  return services.some((s) => p[s.id]);
 }
 
 export default function PeoplePage() {
   const { ready, state, addPerson, updatePerson, deletePerson } = useAppState();
   const [name, setName] = useState("");
-  const [participation, setParticipation] = useState<Record<ServiceId, boolean>>(
-    () => ({
-      ...defaultPersonPayment(),
-      gas: true,
-      water: true,
-    }),
+  const [participation, setParticipation] = useState<Record<string, boolean>>(
+    () => {
+      const pm = defaultPersonPayment();
+      // Initialize to true for the first two services for convenience, if any.
+      // But it's safer to just let the user toggle. We'll default all to true to be nice.
+      return pm;
+    }
   );
   const [editingId, setEditingId] = useState<PersonId | null>(null);
 
+  // Set default participation once state has loaded, if not yet customized
+  if (ready && Object.keys(participation).length === 0 && state.services.length > 0) {
+    const defaultP: Record<string, boolean> = {};
+    for (const s of state.services) defaultP[s.id] = true;
+    setParticipation(defaultP);
+  }
+
   if (!ready) return <LoadingScreen />;
 
-  function toggleService(id: ServiceId) {
+  function toggleService(id: string) {
     setParticipation((prev) => ({ ...prev, [id]: !prev[id] }));
   }
 
@@ -35,50 +42,48 @@ export default function PeoplePage() {
     e.preventDefault();
     const n = name.trim();
     if (!n) return;
-    if (!anyParticipation(participation)) return;
+    if (!anyParticipation(participation, state.services)) return;
     addPerson({
       name: n,
       participatesIn: { ...participation },
     });
     setName("");
-    setParticipation({
-      ...defaultPersonPayment(),
-      gas: true,
-      water: true,
-    });
+    const nextP: Record<string, boolean> = {};
+    for (const s of state.services) nextP[s.id] = true;
+    setParticipation(nextP);
   }
 
   return (
     <div className="space-y-5">
-      <header>
-        <h1 className="text-lg font-bold text-slate-900">Personas</h1>
-        <p className="text-sm text-slate-500">
-          Participación por servicio. Los avatares usan iniciales.
+      <header className="space-y-1">
+        <h1 className="text-2xl font-black tracking-tight text-slate-900">Personas</h1>
+        <p className="text-sm font-bold text-brand-blue/80">
+          ¿Quiénes viven en el hogar?
         </p>
       </header>
 
       <form
         onSubmit={submitAdd}
-        className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+        className="space-y-5 rounded-3xl border border-slate-100 bg-white p-6 shadow-xl shadow-slate-200/40"
       >
-        <label className="block text-sm font-medium text-slate-800">Nombre</label>
+        <label className="block text-xs font-black uppercase tracking-widest text-slate-400">Nombre</label>
         <input
-          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-slate-900 outline-none ring-blue-200 focus:ring-2"
+          className="w-full rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-slate-900 font-bold outline-none ring-brand-blue/20 focus:ring-4 transition-all"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Ej: Ana"
         />
         <fieldset className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap">
-          {SERVICES.map((svc) => (
+          {state.services.map((svc) => (
             <label
               key={svc.id}
-              className="flex items-center gap-2 text-sm text-slate-800"
+              className="flex items-center gap-2 text-sm font-medium text-slate-700"
             >
               <input
                 type="checkbox"
-                checked={participation[svc.id]}
+                checked={participation[svc.id] ?? false}
                 onChange={() => toggleService(svc.id)}
-                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                className="h-5 w-5 rounded border-slate-300 text-brand-blue focus:ring-brand-blue"
               />
               {svc.label}
             </label>
@@ -86,10 +91,10 @@ export default function PeoplePage() {
         </fieldset>
         <button
           type="submit"
-          disabled={!name.trim() || !anyParticipation(participation)}
-          className="w-full rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={!name.trim() || !anyParticipation(participation, state.services)}
+          className="w-full rounded-2xl bg-slate-900 py-4 text-sm font-black text-white shadow-xl shadow-slate-900/20 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 transition-all active:scale-[0.98]"
         >
-          Agregar persona
+          Agregar integrante
         </button>
       </form>
 
@@ -99,6 +104,7 @@ export default function PeoplePage() {
             {editingId === p.id ? (
               <PersonEditor
                 person={p}
+                services={state.services}
                 onCancel={() => setEditingId(null)}
                 onSave={(next) => {
                   updatePerson(p.id, next);
@@ -108,6 +114,7 @@ export default function PeoplePage() {
             ) : (
               <PersonRow
                 person={p}
+                services={state.services}
                 onEdit={() => setEditingId(p.id)}
                 onDelete={() => {
                   if (
@@ -128,14 +135,16 @@ export default function PeoplePage() {
 
 function PersonRow({
   person,
+  services,
   onEdit,
   onDelete,
 }: {
   person: Person;
+  services: ServiceDef[];
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const svcLabels = SERVICES.filter((s) => person.participatesIn[s.id]).map(
+  const svcLabels = services.filter((s) => person.participatesIn[s.id]).map(
     (s) => s.label,
   );
 
@@ -172,19 +181,21 @@ function PersonRow({
 
 function PersonEditor({
   person,
+  services,
   onSave,
   onCancel,
 }: {
   person: Person;
+  services: ServiceDef[];
   onSave: (p: Omit<Person, "id">) => void;
   onCancel: () => void;
 }) {
   const [name, setName] = useState(person.name);
-  const [participation, setParticipation] = useState<Record<ServiceId, boolean>>(
+  const [participation, setParticipation] = useState<Record<string, boolean>>(
     () => ({ ...person.participatesIn }),
   );
 
-  function toggleService(id: ServiceId) {
+  function toggleService(id: string) {
     setParticipation((prev) => ({ ...prev, [id]: !prev[id] }));
   }
 
@@ -196,11 +207,11 @@ function PersonEditor({
         onChange={(e) => setName(e.target.value)}
       />
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-        {SERVICES.map((svc) => (
+        {services.map((svc) => (
           <label key={svc.id} className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
-              checked={participation[svc.id]}
+              checked={participation[svc.id] ?? false}
               onChange={() => toggleService(svc.id)}
               className="h-4 w-4 rounded border-slate-300"
             />
@@ -213,7 +224,7 @@ function PersonEditor({
           type="button"
           onClick={() => {
             const n = name.trim();
-            if (!n || !anyParticipation(participation)) return;
+            if (!n || !anyParticipation(participation, services)) return;
             onSave({
               name: n,
               participatesIn: { ...participation },

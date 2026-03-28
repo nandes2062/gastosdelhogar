@@ -1,22 +1,14 @@
 import type { AppState, MonthKey } from "./types";
-import { getPayment, getMonthRecord, sharePerPerson } from "./billing";
+import { getPayment, getMonthRecord, getMonthParticipants, sharePerPerson, getActiveServiceIds } from "./billing";
 import { formatMoney, formatMonthLabel } from "./format";
-import { SERVICES } from "./services";
-
-/** Emoji asociado a cada servicio; fallback genérico si se agrega uno nuevo. */
-const SERVICE_EMOJI: Record<string, string> = {
-  gas: "🔥",
-  water: "💧",
-  luz: "⚡",
-};
-
-function svcEmoji(id: string): string {
-  return SERVICE_EMOJI[id] ?? "🏠";
-}
 
 export function buildShareMessage(state: AppState, monthKey: MonthKey): string {
   const record = getMonthRecord(state, monthKey);
   const monthName = formatMonthLabel(monthKey);
+  const participants = getMonthParticipants(state, monthKey);
+
+  const activeIds = getActiveServiceIds(state, monthKey);
+  const activeServices = state.services.filter(s => activeIds.includes(s.id));
 
   const lines: string[] = [
     `🏡 *Gastos del Hogar — ${monthName}*`,
@@ -26,10 +18,10 @@ export function buildShareMessage(state: AppState, monthKey: MonthKey): string {
 
   // Totales por servicio
   const serviceLines: string[] = [];
-  for (const svc of SERVICES) {
+  for (const svc of activeServices) {
     const t = record.totals[svc.id];
     if (t != null) {
-      serviceLines.push(`${svcEmoji(svc.id)} ${svc.label}: *${formatMoney(t)}*`);
+      serviceLines.push(`${svc.emoji} ${svc.label}: *${formatMoney(t)}*`);
     }
   }
   if (serviceLines.length === 0) {
@@ -41,20 +33,20 @@ export function buildShareMessage(state: AppState, monthKey: MonthKey): string {
   lines.push("👥 *Lo que le toca a cada uno:*");
   lines.push("");
 
-  // Desglose por persona
-  for (const person of state.people) {
+  // Desglose por persona (usando el snapshot del mes)
+  for (const person of participants) {
     const pay = getPayment(record, person.id);
     const parts: string[] = [];
     let personTotal = 0;
 
-    for (const svc of SERVICES) {
+    for (const svc of activeServices) {
       if (!person.participatesIn[svc.id]) continue;
       const total = record.totals[svc.id];
       if (total == null) continue;
       const share = sharePerPerson(state, monthKey, svc.id);
       personTotal += share;
       const status = pay[svc.id] ? "✅ pagado" : "⏳ pendiente";
-      parts.push(`   ${svcEmoji(svc.id)} ${svc.label}: *${formatMoney(share)}* — ${status}`);
+      parts.push(`   ${svc.emoji} ${svc.label}: *${formatMoney(share)}* — ${status}`);
     }
     if (parts.length === 0) continue;
 
@@ -73,6 +65,7 @@ export function buildShareMessage(state: AppState, monthKey: MonthKey): string {
 
   return lines.join("\n").trim();
 }
+
 
 export async function shareWhatsAppText(text: string): Promise<void> {
   if (typeof navigator !== "undefined" && navigator.share) {

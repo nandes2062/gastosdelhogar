@@ -11,15 +11,21 @@ import {
 import type {
   AppState,
   MonthKey,
+  MonthParticipant,
   MonthRecord,
   MonthRecordPatch,
   Person,
   PersonId,
   PersonMonthPayment,
+  ServiceDef,
 } from "@/lib/types";
 import { loadState, saveState } from "@/lib/storage";
 import { addMonths, currentMonthKey } from "@/lib/format";
-import { defaultPersonPayment, getMonthRecord } from "@/lib/billing";
+import {
+  defaultPersonPayment,
+  getMonthRecord,
+  peopleToParticipants,
+} from "@/lib/billing";
 
 type AppStateContextValue = {
   ready: boolean;
@@ -34,25 +40,18 @@ type AppStateContextValue = {
     personId: PersonId,
     patch: Partial<PersonMonthPayment>,
   ) => void;
+  setMonthParticipants: (
+    monthKey: MonthKey,
+    participants: MonthParticipant[],
+  ) => void;
   addPerson: (p: Omit<Person, "id">) => void;
   updatePerson: (id: PersonId, p: Omit<Person, "id">) => void;
   deletePerson: (id: PersonId) => void;
+  setActiveServiceIds: (monthKey: MonthKey, serviceIds: string[]) => void;
+  saveServices: (services: ServiceDef[]) => void;
 };
 
 const AppStateContext = createContext<AppStateContextValue | null>(null);
-
-function stripPersonFromMonths(
-  months: AppState["months"],
-  personId: PersonId,
-): AppState["months"] {
-  const next: AppState["months"] = {};
-  for (const [k, rec] of Object.entries(months)) {
-    const payments = { ...rec.payments };
-    delete payments[personId];
-    next[k] = { ...rec, payments };
-  }
-  return next;
-}
 
 export function AppStateProvider({
   children,
@@ -61,6 +60,7 @@ export function AppStateProvider({
 }) {
   const [ready, setReady] = useState(false);
   const [state, setState] = useState<AppState>(() => ({
+    services: [],
     people: [],
     months: {},
   }));
@@ -94,16 +94,33 @@ export function AppStateProvider({
     (monthKey: MonthKey, patch: MonthRecordPatch) => {
       setState((prev) => {
         const prevRec = getMonthRecord(prev, monthKey);
+
+        // Si el mes no existe aún (no tiene participants todavía),
+        // inicializamos su snapshot a partir de la lista global actual.
+        const baseParticipants =
+          prevRec.participants !== undefined
+            ? prevRec.participants
+            : peopleToParticipants(prev.people);
+
         const merged: MonthRecord = {
-          totals: { ...prevRec.totals, ...(patch.totals ?? {}) },
+          totals: { ...prevRec.totals, ...(patch.totals ?? {}) } as Record<string, number | null>,
           receiptDataUrls: {
             ...prevRec.receiptDataUrls,
             ...(patch.receiptDataUrls ?? {}),
-          },
+          } as Record<string, string[]>,
           payments:
             patch.payments !== undefined
-              ? { ...prevRec.payments, ...patch.payments }
-              : { ...prevRec.payments },
+              ? ({ ...prevRec.payments, ...patch.payments } as Record<PersonId, PersonMonthPayment>)
+              : ({ ...prevRec.payments } as Record<PersonId, PersonMonthPayment>),
+          // Usa el patch si existe, sino conserva o crea el snapshot.
+          participants:
+            patch.participants !== undefined
+              ? patch.participants
+              : baseParticipants,
+          activeServiceIds:
+            patch.activeServiceIds !== undefined
+              ? patch.activeServiceIds
+              : prevRec.activeServiceIds,
         };
         return {
           ...prev,
@@ -123,7 +140,7 @@ export function AppStateProvider({
       setState((prev) => {
         const prevRec = getMonthRecord(prev, monthKey);
         const cur = prevRec.payments[personId] ?? defaultPersonPayment();
-        const nextPay = { ...cur, ...patch };
+        const nextPay = { ...cur, ...patch } as PersonMonthPayment;
         return {
           ...prev,
           months: {
@@ -131,6 +148,48 @@ export function AppStateProvider({
             [monthKey]: {
               ...prevRec,
               payments: { ...prevRec.payments, [personId]: nextPay },
+            },
+          },
+        };
+      });
+    },
+    [],
+  );
+
+  /**
+   * Reemplaza directamente la lista de participantes de un mes concreto.
+   * Al llamar esto, el mes queda fijo con ese snapshot.
+   */
+  const setMonthParticipants = useCallback(
+    (monthKey: MonthKey, participants: MonthParticipant[]) => {
+      setState((prev) => {
+        const prevRec = getMonthRecord(prev, monthKey);
+        return {
+          ...prev,
+          months: {
+            ...prev.months,
+            [monthKey]: {
+              ...prevRec,
+              participants,
+            },
+          },
+        };
+      });
+    },
+    [],
+  );
+
+  const setActiveServiceIds = useCallback(
+    (monthKey: MonthKey, serviceIds: string[]) => {
+      setState((prev) => {
+        const prevRec = getMonthRecord(prev, monthKey);
+        return {
+          ...prev,
+          months: {
+            ...prev.months,
+            [monthKey]: {
+              ...prevRec,
+              activeServiceIds: serviceIds,
             },
           },
         };
@@ -151,6 +210,8 @@ export function AppStateProvider({
   }, []);
 
   const updatePerson = useCallback((id: PersonId, p: Omit<Person, "id">) => {
+    // Solo actualiza la lista global; los meses históricos mantienen
+    // su snapshot propio y no se ven afectados.
     setState((prev) => ({
       ...prev,
       people: prev.people.map((x) => (x.id === id ? { ...p, id } : x)),
@@ -158,10 +219,18 @@ export function AppStateProvider({
   }, []);
 
   const deletePerson = useCallback((id: PersonId) => {
+    // Solo elimina de la lista global; los meses históricos mantienen
+    // su snapshot propio y no se ven afectados.
     setState((prev) => ({
       ...prev,
       people: prev.people.filter((x) => x.id !== id),
-      months: stripPersonFromMonths(prev.months, id),
+    }));
+  }, []);
+
+  const saveServices = useCallback((services: ServiceDef[]) => {
+    setState((prev) => ({
+      ...prev,
+      services,
     }));
   }, []);
 
@@ -175,9 +244,12 @@ export function AppStateProvider({
       goNextMonth,
       upsertMonth,
       setPayment,
+      setMonthParticipants,
       addPerson,
       updatePerson,
       deletePerson,
+      setActiveServiceIds,
+      saveServices,
     }),
     [
       ready,
@@ -187,9 +259,12 @@ export function AppStateProvider({
       goNextMonth,
       upsertMonth,
       setPayment,
+      setMonthParticipants,
       addPerson,
       updatePerson,
       deletePerson,
+      setActiveServiceIds,
+      saveServices,
     ],
   );
 

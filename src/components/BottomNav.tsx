@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { SERVICES } from "@/lib/services";
-import type { ServiceId } from "@/lib/services";
+import { useAppState } from "@/context/AppStateContext";
+import { getActiveServiceIds } from "@/lib/billing";
 
 type NavIcon = React.ComponentType<{ className?: string; active?: boolean }>;
 
@@ -13,35 +13,61 @@ type NavItem = {
   Icon: NavIcon;
 };
 
-function serviceIcon(id: ServiceId): NavIcon {
+// Fallback function for icons if not generic
+function serviceIcon(id: string): NavIcon {
   const map: Record<string, NavIcon> = {
     gas: IconFlame,
     water: IconDroplet,
+    luz: IconBolt,
   };
-  return map[id] ?? IconHome;
+  return map[id] ?? IconHome; // Using IconHome as fallback for unknown generic services; ideally we could create a generic one or read from emoji
+}
+
+// Un icono genérico por si acaso, usando el emoji pero renderizándolo simple
+function GenericIcon({ emoji, active, className }: { emoji: string; active?: boolean; className?: string }) {
+  return (
+    <div className={`flex items-center justify-center ${className} ${active ? 'opacity-100' : 'opacity-60 saturate-0'}`}>
+      <span className="text-lg leading-none">{emoji}</span>
+    </div>
+  );
 }
 
 const staticTail: NavItem[] = [
   { href: "/history", label: "Historial", Icon: IconClock },
   { href: "/people", label: "Personas", Icon: IconUsers },
+  { href: "/services", label: "Catálogo", Icon: IconCog },
   { href: "/backup", label: "Backup", Icon: IconDatabase },
-];
-
-const items: NavItem[] = [
-  { href: "/", label: "Inicio", Icon: IconHome },
-  ...SERVICES.map((s) => ({
-    href: s.route,
-    label: s.navLabel,
-    Icon: serviceIcon(s.id),
-  })),
-  ...staticTail,
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { ready, state, selectedMonthKey } = useAppState();
+
+  const activeIds = ready ? getActiveServiceIds(state, selectedMonthKey) : [];
+  const activeServices = ready ? state.services.filter(s => activeIds.includes(s.id)) : [];
+
+  const dynamicItems: NavItem[] = activeServices.map((s) => ({
+    href: `/s/${s.id}`,
+    label: s.label,
+    Icon: (props) => {
+      // Si tenemos un SVG específico (gas/agua/luz), lo usamos. Si no, usamos el emoji genérico.
+      if (["gas", "water", "luz"].includes(s.id)) {
+        const SpecificIcon = serviceIcon(s.id);
+        return <SpecificIcon {...props} />;
+      }
+      return <GenericIcon emoji={s.emoji} {...props} />;
+    },
+  }));
+
+  const items: NavItem[] = [
+    { href: "/", label: "Inicio", Icon: IconHome },
+    ...dynamicItems,
+    ...staticTail,
+  ];
+
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
+      className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-100 bg-white/80 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl"
       aria-label="Principal"
     >
       <div className="mx-auto flex max-w-lg overflow-x-auto px-1 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -55,14 +81,14 @@ export function BottomNav() {
               <Link
                 key={href}
                 href={href}
-                className={`flex min-w-[3.25rem] shrink-0 flex-col items-center gap-0.5 rounded-lg py-2 text-[9px] font-medium sm:text-[10px] ${
+                className={`flex min-w-[3.25rem] shrink-0 flex-col items-center gap-1 rounded-2xl py-2 text-[10px] font-bold tracking-tight ${
                   active
-                    ? "text-blue-700"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "text-brand-blue"
+                    : "text-slate-400 hover:text-brand-blue/70"
                 }`}
               >
                 <Icon
-                  className={`h-6 w-6 ${active ? "text-blue-600" : "text-slate-400"}`}
+                  className={`h-6 w-6 ${active ? "text-brand-blue" : "text-slate-300"}`}
                   active={active}
                 />
                 <span className="max-w-[4.5rem] truncate text-center leading-tight">
@@ -165,6 +191,27 @@ function IconUsers({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconCog({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
         stroke="currentColor"
         strokeWidth="1.75"
         strokeLinecap="round"

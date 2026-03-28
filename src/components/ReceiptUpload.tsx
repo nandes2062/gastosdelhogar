@@ -6,10 +6,12 @@ import {
   RECEIPT_MAX_IMAGES,
 } from "@/lib/types";
 
+import type { ServiceTheme } from "@/lib/services";
+
 type Props = {
   label: string;
   dataUrls: string[];
-  accent: "gas" | "water" | "emerald";
+  accent: ServiceTheme;
   onChange: (urls: string[]) => void;
 };
 
@@ -90,18 +92,30 @@ export function ReceiptUpload({ label, dataUrls, accent, onChange }: Props) {
   );
 
   const border =
-    accent === "gas"
+    accent === "amber"
       ? "border-amber-200 bg-amber-50/50"
-      : accent === "water"
+      : accent === "blue"
         ? "border-blue-200 bg-blue-50/50"
-        : "border-emerald-200 bg-emerald-50/50";
+        : accent === "green"
+          ? "border-emerald-200 bg-emerald-50/50"
+          : accent === "purple"
+            ? "border-violet-200 bg-violet-50/50"
+            : accent === "rose"
+              ? "border-rose-200 bg-rose-50/50"
+              : "border-slate-200 bg-slate-50/50";
 
   const btnPrimary =
-    accent === "gas"
+    accent === "amber"
       ? "bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
-      : accent === "water"
+      : accent === "blue"
         ? "bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-        : "bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50";
+        : accent === "green"
+          ? "bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+          : accent === "purple"
+            ? "bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
+            : accent === "rose"
+              ? "bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50"
+              : "bg-slate-800 text-white hover:bg-slate-900 disabled:opacity-50";
 
   const viewerUrl =
     viewerIndex != null && dataUrls[viewerIndex] ? dataUrls[viewerIndex] : null;

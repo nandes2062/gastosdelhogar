@@ -10,8 +10,8 @@ import {
   monthHasBills,
 } from "@/lib/billing";
 import { formatMoney, formatMonthLabel } from "@/lib/format";
-import type { MonthKey } from "@/lib/types";
-import { SERVICES } from "@/lib/services";
+import type { MonthKey, ServiceDef } from "@/lib/types";
+import { getActiveServiceIds } from "@/lib/billing";
 
 export default function HistoryPage() {
   const router = useRouter();
@@ -45,6 +45,7 @@ export default function HistoryPage() {
                   totals={rec.totals}
                   hasBills={hasBills}
                   complete={complete}
+                  activeServices={state.services.filter(s => getActiveServiceIds(state, key).includes(s.id))}
                   onOpen={() => {
                     setSelectedMonthKey(key);
                     router.push("/");
@@ -71,12 +72,14 @@ function HistoryCard({
   totals,
   hasBills,
   complete,
+  activeServices,
   onOpen,
 }: {
   monthKey: MonthKey;
   totals: Record<string, number | null>;
   hasBills: boolean;
   complete: boolean;
+  activeServices: ServiceDef[];
   onOpen: () => void;
 }) {
   const badge = !hasBills
@@ -101,11 +104,11 @@ function HistoryCard({
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="font-semibold capitalize text-slate-900">
+          <p className="font-semibold capitalize text-slate-900 dark:text-white">
             {formatMonthLabel(monthKey)}
           </p>
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            {SERVICES.map((svc, i) => {
+            {activeServices.length > 0 ? activeServices.map((svc, i) => {
               const c = tone(i);
               const val = totals[svc.id];
               return (
@@ -114,11 +117,13 @@ function HistoryCard({
                   <strong>{val != null ? formatMoney(val) : "—"}</strong>
                 </span>
               );
-            })}
+            }) : (
+              <span className="text-slate-500 italic">Sin servicios asignados</span>
+            )}
           </div>
         </div>
         <span
-          className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-semibold ring-1 ${badge}`}
+          className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-semibold ring-1 ${badge} dark:bg-opacity-20`}
         >
           {badgeLabel}
         </span>

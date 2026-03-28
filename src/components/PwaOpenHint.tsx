@@ -54,30 +54,23 @@ export function PwaOpenHint() {
 
   return (
     <div
-      className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-950 shadow-sm"
+      className="mb-4 rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm font-medium text-amber-950 shadow-xl shadow-amber-900/5"
       role="status"
     >
-      <p className="font-semibold text-amber-900">
-        Modo navegador (con barra de direcciones)
+      <p className="font-black text-amber-900 flex items-center gap-2">
+        Aviso: Modo navegador 🌐
       </p>
-      <p className="mt-1 leading-snug text-amber-900/90">
-        Una PWA no es una app de tienda: es la misma web en una ventana sin
-        interfaz del navegador cuando la abrís{" "}
-        <strong>desde el ícono que agregaste al inicio</strong>, no desde un
-        enlace de WhatsApp ni desde una pestaña guardada.
+      <p className="mt-2 leading-relaxed text-amber-900/90">
+        Recordá que esta es una PWA: para la mejor experiencia, <strong>abrila siempre desde el ícono que agregaste a tu inicio</strong>.
       </p>
       {lan ? (
-        <p className="mt-2 leading-snug text-amber-900/90">
-          Estás usando <strong>http</strong> en la red local (ej. IP del Wi‑Fi).
-          Muchos celulares <strong>no abren modo “app” real</strong> sin{" "}
-          <strong>HTTPS</strong>. Para probar instalación completa: publicá la
-          app en un host con HTTPS (Vercel, etc.) o usá{" "}
-          <strong>localhost</strong> en el mismo equipo.
+        <p className="mt-2 leading-relaxed text-amber-900/80">
+          Nota: El modo "app" real suele requerir <strong>HTTPS</strong>.
         </p>
       ) : null}
       <button
         type="button"
-        className="mt-2 text-xs font-semibold text-amber-800 underline underline-offset-2 hover:text-amber-950"
+        className="mt-4 text-sm font-black text-amber-600 underline underline-offset-4 hover:text-amber-700"
         onClick={() => {
           setShow(false);
           try {
@@ -87,7 +80,7 @@ export function PwaOpenHint() {
           }
         }}
       >
-        Entendido, ocultar
+        Entendido
       </button>
     </div>
   );

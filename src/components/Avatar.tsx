@@ -7,10 +7,10 @@ type Props = {
 };
 
 const ring: Record<Props["variant"], string> = {
-  gas: "bg-amber-100 text-amber-900 ring-amber-200",
-  water: "bg-blue-100 text-blue-900 ring-blue-200",
-  emerald: "bg-emerald-100 text-emerald-900 ring-emerald-200",
-  neutral: "bg-slate-200 text-slate-800 ring-slate-300",
+  gas: "bg-amber-400 text-white ring-amber-500",
+  water: "bg-blue-600 text-white ring-blue-700",
+  emerald: "bg-emerald-500 text-white ring-emerald-600",
+  neutral: "bg-indigo-600 text-white ring-indigo-700",
 };
 
 export function Avatar({ name, className = "", variant }: Props) {

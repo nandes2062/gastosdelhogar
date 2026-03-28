@@ -1,10 +1,13 @@
 import type { Metadata, Viewport } from "next";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/AppShell";
 
-const APP_NAME = "GastosdelHogar";
-const APP_TITLE = "GastosdelHogar";
-const APP_DESCRIPTION = "Dividí gas y agua del hogar entre quienes vivís junto a vos.";
+const outfit = Outfit({ subsets: ["latin"] });
+
+const APP_NAME = "Hagamos Vaquita";
+const APP_TITLE = "Hagamos Vaquita";
+const APP_DESCRIPTION = "Tu vaquita mensual, sin cuentas, sin internet, y sin enredos.";
 
 export const metadata: Metadata = {
   applicationName: APP_NAME,
@@ -26,7 +29,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1d4ed8",
+  themeColor: "#007AFF",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -39,8 +42,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className="h-full">
-      <body className="min-h-dvh antialiased">
+    <html lang="es" className={`h-full ${outfit.className}`}>
+      <body className="min-h-dvh antialiased bg-white text-slate-900">
         <AppShell>{children}</AppShell>
       </body>
     </html>
