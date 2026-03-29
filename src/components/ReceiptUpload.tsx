@@ -176,7 +176,7 @@ export function ReceiptUpload({ label, dataUrls, accent, onChange }: Props) {
           {dataUrls.map((url, i) => (
             <li
               key={`${i}-${url.slice(0, 24)}`}
-              className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-100"
+              className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-100 group"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -184,11 +184,22 @@ export function ReceiptUpload({ label, dataUrls, accent, onChange }: Props) {
                 alt={`Comprobante ${i + 1}`}
                 className="h-32 w-full object-cover"
               />
-              <div className="absolute inset-x-0 bottom-0 flex gap-1 bg-black/55 p-1">
+              
+              {/* Top Right Remove Button */}
+              <button
+                type="button"
+                onClick={() => removeAt(i)}
+                className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-red-600/90 text-sm font-bold text-white shadow-sm backdrop-blur-sm transition-colors hover:bg-red-600"
+                aria-label={`Quitar imagen ${i + 1}`}
+              >
+                ✕
+              </button>
+
+              <div className="absolute inset-x-0 bottom-0 flex gap-1.5 bg-black/60 p-1.5 backdrop-blur-sm">
                 <button
                   type="button"
                   onClick={() => setViewerIndex(i)}
-                  className="flex-1 rounded-lg py-1.5 text-xs font-semibold text-white"
+                  className="flex-1 rounded-lg py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
                 >
                   Ver
                 </button>
@@ -196,20 +207,12 @@ export function ReceiptUpload({ label, dataUrls, accent, onChange }: Props) {
                   <button
                     type="button"
                     onClick={() => shareImage(url)}
-                    className="rounded-lg bg-green-600/90 px-2 text-xs font-semibold text-white"
+                    className="flex items-center justify-center rounded-lg bg-emerald-600/90 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-600"
                     title="Compartir"
                   >
                     📱
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={() => removeAt(i)}
-                  className="rounded-lg bg-red-600/90 px-2 text-xs font-semibold text-white"
-                  aria-label={`Quitar imagen ${i + 1}`}
-                >
-                  ✕
-                </button>
               </div>
             </li>
           ))}
