@@ -177,3 +177,62 @@ export function monthHasBills(state: AppState, monthKey: MonthKey): boolean {
   const serviceIds = state.services.map((s) => s.id);
   return serviceIds.some((id) => record.totals[id] != null);
 }
+
+// ─── Debts ───────────────────────────────────────────────────────────────────
+
+export type PersonDebt = {
+  personId: string;
+  name: string;
+  totalDebt: number;
+  months: string[];
+};
+
+/**
+ * Calcula la deuda total acumulada para todas las personas a lo largo de todos los meses.
+ */
+export function calculateTotalDebts(state: AppState): PersonDebt[] {
+  const personsMap: Record<string, PersonDebt> = {};
+
+  const monthKeys = Object.keys(state.months).sort();
+
+  for (const monthKey of monthKeys) {
+    const record = state.months[monthKey];
+    const participants = getMonthParticipants(state, monthKey);
+    const activeServiceIds = getActiveServiceIds(state, monthKey);
+
+    for (const p of participants) {
+      if (!personsMap[p.id]) {
+        // Find latest name from state.people if exists, else keep snapshot name
+        const latestName = state.people.find(person => person.id === p.id)?.name || p.name;
+        personsMap[p.id] = { personId: p.id, name: latestName, totalDebt: 0, months: [] };
+      }
+
+      const payments = getPayment(record, p.id);
+      let owingInThisMonth = false;
+      let monthDebt = 0;
+
+      for (const serviceId of activeServiceIds) {
+        const total = record.totals[serviceId];
+        if (total && total > 0 && p.participatesIn[serviceId] && !payments[serviceId]) {
+          const share = sharePerPerson(state, monthKey, serviceId);
+          monthDebt += share;
+          owingInThisMonth = true;
+        }
+      }
+
+      if (owingInThisMonth && monthDebt > 0) {
+        personsMap[p.id].totalDebt += monthDebt;
+        personsMap[p.id].months.push(monthKey);
+      }
+    }
+  }
+
+  // Filter out those with no debt and round the totals to avoid float precision issues
+  return Object.values(personsMap)
+    .filter(debt => debt.totalDebt > 0)
+    .map(debt => ({
+      ...debt,
+      totalDebt: Math.round(debt.totalDebt * 10) / 10,
+    }))
+    .sort((a, b) => b.totalDebt - a.totalDebt);
+}

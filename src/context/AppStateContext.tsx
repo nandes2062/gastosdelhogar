@@ -69,17 +69,18 @@ export function AppStateProvider({
   );
 
   useEffect(() => {
-    const s = loadState();
-    // Hidratación desde localStorage solo en cliente (evita mismatch SSR).
-    queueMicrotask(() => {
+    let mounted = true;
+    loadState().then((s) => {
+      if (!mounted) return;
       setState(s);
       setReady(true);
     });
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
     if (!ready) return;
-    saveState(state);
+    void saveState(state);
   }, [state, ready]);
 
   const goPrevMonth = useCallback(() => {

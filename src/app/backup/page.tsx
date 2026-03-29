@@ -6,6 +6,7 @@ import { LoadingScreen } from "@/components/LoadingScreen";
 import { normalizeAppState } from "@/lib/storage";
 import type { AppState } from "@/lib/types";
 import { STORAGE_KEY } from "@/lib/types";
+import { set } from "idb-keyval";
 
 // ────────────────────────────────────────────────
 // Helpers
@@ -106,8 +107,10 @@ export default function BackupPage() {
       }
 
       const normalized = normalizeAppState(parsed);
-      // Persist directly to localStorage; the page will pick it up on next load.
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+      // Persist directly to IndexedDB; the page will pick it up on next load.
+      await set(STORAGE_KEY, JSON.stringify(normalized));
+      // Just in case, clean up any old localStorage data to prevent conflicts
+      window.localStorage.removeItem(STORAGE_KEY);
       setImportSuccess(true);
 
       // Wait briefly then reload so the context hydrates with fresh data.

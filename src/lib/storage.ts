@@ -11,6 +11,7 @@ import { THEMES } from "./services";
 import type { ServiceTheme } from "./services";
 import { STORAGE_KEY } from "./types";
 import { createInitialAppState, SEED_SERVICES } from "./initialData";
+import { get, set } from "idb-keyval";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -211,36 +212,51 @@ export function normalizeAppState(parsed: unknown): AppState {
 
 // ─── Load / Save ──────────────────────────────────────────────────────────────
 
-export function loadState(): AppState {
+export async function loadState(): Promise<AppState> {
   if (typeof window === "undefined") {
     return createInitialAppState();
   }
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      const initial = createInitialAppState();
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
-      return initial;
+    // 1. Try from IndexedDB
+    const idbRaw = await get<string>(STORAGE_KEY);
+    if (idbRaw) {
+      const parsed = JSON.parse(idbRaw) as unknown;
+      if (isRaw(parsed) && parsed.people && parsed.months) {
+        return normalizeAppState(parsed);
+      }
     }
-    const parsed = JSON.parse(raw) as unknown;
-    if (!isRaw(parsed) || !parsed.people || !parsed.months) {
-      const initial = createInitialAppState();
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
-      return initial;
+
+    // 2. If nothing in IDB or invalid, check localStorage for migration
+    const localRaw = window.localStorage.getItem(STORAGE_KEY);
+    if (localRaw) {
+      const parsed = JSON.parse(localRaw) as unknown;
+      if (isRaw(parsed) && parsed.people && parsed.months) {
+        const state = normalizeAppState(parsed);
+        // Save to IndexedDB (as string to match logic)
+        await set(STORAGE_KEY, JSON.stringify(state));
+        // Clear old space
+        window.localStorage.removeItem(STORAGE_KEY);
+        return state;
+      }
     }
-    return normalizeAppState(parsed);
-  } catch {
+
+    // 3. Fallback: initialized empty state
+    const initial = createInitialAppState();
+    await set(STORAGE_KEY, JSON.stringify(initial));
+    return initial;
+  } catch (err) {
+    console.warn("Storage Error, falling back to initial state", err);
     const initial = createInitialAppState();
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
+      await set(STORAGE_KEY, JSON.stringify(initial));
     } catch { /* ignore */ }
     return initial;
   }
 }
 
-export function saveState(state: AppState): void {
+export async function saveState(state: AppState): Promise<void> {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    await set(STORAGE_KEY, JSON.stringify(state));
   } catch { /* quota or private mode */ }
 }
