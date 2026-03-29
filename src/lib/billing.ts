@@ -94,6 +94,7 @@ export function getMonthParticipants(
     id:             p.id,
     name:           p.name,
     participatesIn: { ...p.participatesIn },
+    percentages:    {},
   }));
 }
 
@@ -103,6 +104,7 @@ export function peopleToParticipants(people: Person[]): MonthParticipant[] {
     id:             p.id,
     name:           p.name,
     participatesIn: { ...p.participatesIn },
+    percentages:    {},
   }));
 }
 
@@ -129,12 +131,37 @@ export function sharePerPerson(
   state: AppState,
   monthKey: MonthKey,
   serviceId: string,
+  personId: string
 ): number {
   const record = getMonthRecord(state, monthKey);
-  const n = serviceParticipants(state, monthKey, serviceId).length;
+  const participants = serviceParticipants(state, monthKey, serviceId);
   const total = record.totals[serviceId];
-  if (total == null || n === 0) return 0;
-  const raw = total / n;
+  if (total == null || participants.length === 0) return 0;
+
+  const person = participants.find(p => p.id === personId);
+  if (!person) return 0;
+
+  const customPercentage = person.percentages?.[serviceId];
+  if (customPercentage != null && customPercentage > 0) {
+    const raw = (total * customPercentage) / 100;
+    const rounded = Math.ceil(Math.round(raw * 1000) / 100) / 10;
+    return Math.round(rounded * 10) / 10;
+  }
+
+  let remainingTotal = total;
+  let remainingCount = 0;
+  for (const p of participants) {
+    const pPct = p.percentages?.[serviceId];
+    if (pPct != null && pPct > 0) {
+      remainingTotal -= (total * pPct) / 100;
+    } else {
+      remainingCount++;
+    }
+  }
+
+  if (remainingCount === 0 || remainingTotal <= 0) return 0;
+  
+  const raw = remainingTotal / remainingCount;
   const rounded = Math.ceil(Math.round(raw * 1000) / 100) / 10;
   return Math.round(rounded * 10) / 10;
 }
@@ -215,7 +242,7 @@ export function calculateTotalDebts(state: AppState): PersonDebt[] {
       for (const serviceId of activeServiceIds) {
         const total = record.totals[serviceId];
         if (total && total > 0 && p.participatesIn[serviceId] && !payments[serviceId]) {
-          const share = sharePerPerson(state, monthKey, serviceId);
+          const share = sharePerPerson(state, monthKey, serviceId, p.id);
           monthDebt += share;
           owingInThisMonth = true;
         }

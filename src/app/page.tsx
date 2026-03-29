@@ -23,13 +23,7 @@ import {
 import type { ServiceTheme } from "@/lib/services";
 import type { ServiceDef } from "@/lib/types";
 
-function servicesSubtitle(activeServices: ServiceDef[]): string {
-  const labels = activeServices.map((s) => s.label.toLowerCase());
-  if (labels.length === 0) return "Sin servicios";
-  if (labels.length === 1) return labels[0] ?? "";
-  if (labels.length === 2) return `${labels[0]} y ${labels[1]}`;
-  return `${labels.slice(0, -1).join(", ")} y ${labels[labels.length - 1]}`;
-}
+
 
 export default function HomePage() {
   const {
@@ -100,7 +94,7 @@ export default function HomePage() {
           activeServices.map((svc) => {
           const total = record.totals[svc.id];
           const participants = serviceParticipants(state, selectedMonthKey, svc.id);
-          const each = sharePerPerson(state, selectedMonthKey, svc.id);
+          const hasCustomPcts = participants.some(p => p.percentages?.[svc.id] != null && p.percentages[svc.id] > 0);
           const card = getSummaryCardClass(svc.theme);
           return (
             <div key={svc.id} className={card.wrap}>
@@ -109,11 +103,13 @@ export default function HomePage() {
                 {total != null ? formatMoney(total) : "—"}
               </p>
               <p className={card.meta}>
-                {participants.length > 0 && total != null
-                  ? `${formatMoney(each)} c/u (${participants.length} persona${participants.length !== 1 ? "s" : ""})`
-                  : participants.length === 0
-                    ? `Nadie asignado a ${svc.label.toLowerCase()}`
-                    : "Sin monto cargado"}
+                {participants.length === 0
+                   ? `Nadie asignado a ${svc.label.toLowerCase()}`
+                   : total == null
+                     ? "Sin monto cargado"
+                     : hasCustomPcts
+                       ? `Montos variables (${participants.length} persona${participants.length !== 1 ? "s" : ""})`
+                       : `${formatMoney(sharePerPerson(state, selectedMonthKey, svc.id, participants[0].id))} c/u (${participants.length} persona${participants.length !== 1 ? "s" : ""})`}
               </p>
             </div>
           );
@@ -149,6 +145,7 @@ export default function HomePage() {
                                       state,
                                       selectedMonthKey,
                                       svc.id,
+                                      person.id
                                     ),
                                   )
                                 : "Sin recibo"

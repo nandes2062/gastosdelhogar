@@ -10,7 +10,6 @@ import { useAppState } from "@/context/AppStateContext";
 import {
   getMonthParticipants,
   getMonthRecord,
-  peopleToParticipants,
   serviceParticipants,
   sharePerPerson,
 } from "@/lib/billing";
@@ -74,11 +73,10 @@ function ServiceMonthBody({
   monthKey: MonthKey;
   serviceId: string;
 }) {
-  const { state, upsertMonth, setMonthParticipants } = useAppState();
+  const { state, upsertMonth } = useAppState();
   const def = state.services.find(s => s.id === serviceId)!;
   const record = getMonthRecord(state, monthKey);
   const participants = serviceParticipants(state, monthKey, serviceId);
-  const share = sharePerPerson(state, monthKey, serviceId);
   const total = record.totals[serviceId];
   const t = getBillPageTheme(def.theme);
 
@@ -168,7 +166,7 @@ function ServiceMonthBody({
                       </span>
                     </div>
                     <span className={t.amountStrong}>
-                      {total != null ? formatMoney(share) : "—"}
+                      {total != null ? formatMoney(sharePerPerson(state, monthKey, serviceId, p.id)) : "—"}
                     </span>
                   </li>
                 ))}
@@ -239,38 +237,64 @@ function ParticipantEditor({
       id: p.id,
       name: p.name,
       participatesIn: { ...p.participatesIn },
+      percentages: {},
     })),
     currentParticipants,
   );
 
-  // Estado local de participación en este servicio para este mes
-  const [localActive, setLocalActive] = useState<Record<string, boolean>>(() => {
-    const map: Record<string, boolean> = {};
+  // Estado local de participación y porcentaje para este servicio en este mes
+  const [localActive, setLocalActive] = useState<Record<string, { active: boolean, pct: string }>>(() => {
+    const map: Record<string, { active: boolean, pct: string }> = {};
     for (const p of allKnownPeople) {
-      // ¿Está en el snapshot del mes con este servicio activo?
       const inSnapshot = currentParticipants.find((cp) => cp.id === p.id);
-      map[p.id] = inSnapshot ? (inSnapshot.participatesIn[serviceId] ?? false) : false;
+      const active = inSnapshot ? (inSnapshot.participatesIn[serviceId] ?? false) : false;
+      const pctValue = inSnapshot?.percentages?.[serviceId];
+      map[p.id] = { active, pct: pctValue != null ? String(pctValue) : "" };
     }
     return map;
   });
 
   function toggle(id: string) {
-    setLocalActive((prev) => ({ ...prev, [id]: !prev[id] }));
+    setLocalActive((prev) => ({ 
+      ...prev, 
+      [id]: { ...prev[id], active: !prev[id].active } 
+    }));
+  }
+
+  function setPct(id: string, pctStr: string) {
+    setLocalActive((prev) => ({ 
+      ...prev, 
+      [id]: { ...prev[id], pct: pctStr } 
+    }));
   }
 
   function applyChanges() {
-    // Reconstruimos el snapshot completo del mes aplicando los cambios de este servicio
     const nextParticipants: MonthParticipant[] = allKnownPeople.map((p) => {
       const inSnapshot = currentParticipants.find((cp) => cp.id === p.id);
       const baseParticipatesIn = inSnapshot
         ? { ...inSnapshot.participatesIn }
         : { ...p.participatesIn };
-      // Sobreescribimos solo el servicio que estamos editando
-      baseParticipatesIn[serviceId] = localActive[p.id] ?? false;
+      
+      const basePercentages = inSnapshot?.percentages
+        ? { ...inSnapshot.percentages }
+        : { ...p.percentages };
+
+      baseParticipatesIn[serviceId] = localActive[p.id].active;
+
+      const userPctRaw = localActive[p.id].pct.trim();
+      const pctToSave = userPctRaw === "" ? undefined : Number.parseFloat(userPctRaw.replace(",", "."));
+      
+      if (pctToSave == null || isNaN(pctToSave) || pctToSave < 0) {
+        delete basePercentages[serviceId];
+      } else {
+        basePercentages[serviceId] = pctToSave;
+      }
+
       return {
         id: p.id,
         name: p.name,
         participatesIn: baseParticipatesIn,
+        percentages: Object.keys(basePercentages).length > 0 ? basePercentages : undefined,
       };
     });
     setMonthParticipants(monthKey, nextParticipants);
@@ -286,16 +310,30 @@ function ParticipantEditor({
       <ul className="space-y-2">
         {allKnownPeople.map((p) => (
           <li key={p.id}>
-            <label className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-slate-100">
+            <label className="flex flex-1 cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-slate-100">
               <input
                 type="checkbox"
-                checked={localActive[p.id] ?? false}
+                checked={localActive[p.id]?.active ?? false}
                 onChange={() => toggle(p.id)}
                 className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
               />
               <Avatar name={p.name} variant="neutral" />
               <span className="text-sm font-medium text-slate-800">{p.name}</span>
             </label>
+            {(localActive[p.id]?.active) && (
+              <div className="flex items-center ml-2">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="%"
+                  title="Porcentaje personalizado"
+                  className="w-16 rounded border border-slate-200 bg-white px-2 py-1 text-sm text-center outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  value={localActive[p.id]?.pct ?? ""}
+                  onChange={(e) => setPct(p.id, e.target.value)}
+                />
+                <span className="text-xs text-slate-400 ml-1 font-semibold">%</span>
+              </div>
+            )}
           </li>
         ))}
       </ul>

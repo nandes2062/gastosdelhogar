@@ -45,10 +45,12 @@ export function buildShareMessage(state: AppState, monthKey: MonthKey): string {
       if (!person.participatesIn[svc.id]) continue;
       const total = record.totals[svc.id];
       if (total == null) continue;
-      const share = sharePerPerson(state, monthKey, svc.id);
+      const share = sharePerPerson(state, monthKey, svc.id, person.id);
       personTotal += share;
+      const pPct = person.percentages?.[svc.id];
+      const pctStr = (pPct != null && pPct > 0) ? ` (${pPct}%)` : "";
       const status = pay[svc.id] ? "✅ pagado" : "⏳ pendiente";
-      parts.push(`   ${svc.emoji} ${svc.label}: *${formatMoney(share)}* — ${status}`);
+      parts.push(`   ${svc.emoji} ${svc.label}${pctStr}: *${formatMoney(share)}* — ${status}`);
     }
     
     if (parts.length === 0) continue;

@@ -95,7 +95,13 @@ function normalizeParticipants(raw: unknown): MonthParticipant[] | undefined {
         participatesIn[k] = v === true;
       }
     }
-    out.push({ id: item.id, name: item.name, participatesIn });
+    const percentages: Record<string, number> = {};
+    if (isRaw(item.percentages)) {
+      for (const [k, v] of Object.entries(item.percentages)) {
+        if (typeof v === "number") percentages[k] = v;
+      }
+    }
+    out.push({ id: item.id, name: item.name, participatesIn, percentages });
   }
   return out.length > 0 ? out : undefined;
 }

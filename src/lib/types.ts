@@ -23,6 +23,8 @@ export type MonthParticipant = {
   id: PersonId;
   name: string;
   participatesIn: Record<string, boolean>;
+  /** Optional custom percentage per service (keyed by service id) */
+  percentages?: Record<string, number>;
 };
 
 export type MonthRecord = {
