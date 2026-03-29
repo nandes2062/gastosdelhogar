@@ -27,5 +27,14 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "webpack": "^5.105.4"
-  }
+  },
+  "browserslist": [
+    ">0.3%",
+    "not dead",
+    "not op_mini all",
+    "Chrome >= 70",
+    "Safari >= 12",
+    "Edge >= 79",
+    "Firefox >= 68"
+  ]
 }
