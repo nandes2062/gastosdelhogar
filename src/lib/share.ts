@@ -85,3 +85,45 @@ export async function shareWhatsAppText(text: string): Promise<void> {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
+/**
+ * Convierte un Data URL (base64) a un objeto File para poder compartirlo.
+ */
+export async function dataUrlToFile(dataUrl: string, fileName: string): Promise<File> {
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
+  return new File([blob], fileName, { type: blob.type });
+}
+
+/**
+ * Verifica si el navegador soporta compartir archivos.
+ */
+export function canShareFiles(): boolean {
+  if (typeof navigator === "undefined" || !navigator.canShare) return false;
+  // Creamos un mini-blob de prueba para verificar
+  try {
+    const file = new File([""], "test.png", { type: "image/png" });
+    return navigator.canShare({ files: [file] });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Intenta compartir una imagen usando la API nativa (Web Share API).
+ */
+export async function shareImage(dataUrl: string, fileName: string = "comprobante.jpg"): Promise<boolean> {
+  try {
+    if (!canShareFiles()) return false;
+    const file = await dataUrlToFile(dataUrl, fileName);
+    await navigator.share({
+      files: [file],
+      title: "Comprobante de pago",
+    });
+    return true;
+  } catch (e) {
+    if ((e as Error).name === "AbortError") return true; // El usuario canceló pero no es un error "real"
+    console.error("Error sharing image:", e);
+    return false;
+  }
+}
+

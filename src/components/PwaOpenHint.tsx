@@ -65,7 +65,7 @@ export function PwaOpenHint() {
       </p>
       {lan ? (
         <p className="mt-2 leading-relaxed text-amber-900/80">
-          Nota: El modo "app" real suele requerir <strong>HTTPS</strong>.
+          Nota: El modo &quot;app&quot; real suele requerir <strong>HTTPS</strong>.
         </p>
       ) : null}
       <button

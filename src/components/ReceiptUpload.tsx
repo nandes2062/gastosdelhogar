@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useId, useState } from "react";
+import { useCallback, useId, useState, useEffect } from "react";
 import {
   RECEIPT_MAX_BYTES,
   RECEIPT_MAX_IMAGES,
 } from "@/lib/types";
+import { canShareFiles, shareImage } from "@/lib/share";
 
 import type { ServiceTheme } from "@/lib/services";
 
@@ -33,6 +34,12 @@ export function ReceiptUpload({ label, dataUrls, accent, onChange }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const [canShare, setCanShare] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCanShare(canShareFiles());
+  }, []);
 
   const addFiles = useCallback(
     async (files: FileList | File[] | null) => {
@@ -185,6 +192,16 @@ export function ReceiptUpload({ label, dataUrls, accent, onChange }: Props) {
                 >
                   Ver
                 </button>
+                {canShare && (
+                  <button
+                    type="button"
+                    onClick={() => shareImage(url)}
+                    className="rounded-lg bg-green-600/90 px-2 text-xs font-semibold text-white"
+                    title="Compartir"
+                  >
+                    📱
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => removeAt(i)}
@@ -243,13 +260,24 @@ export function ReceiptUpload({ label, dataUrls, accent, onChange }: Props) {
           <p className="mt-2 text-center text-sm text-white/90">
             {viewerIndex + 1} / {dataUrls.length}
           </p>
-          <button
-            type="button"
-            className="mt-3 rounded-xl bg-white px-6 py-2.5 text-sm font-semibold text-slate-900"
-            onClick={() => setViewerIndex(null)}
-          >
-            Cerrar
-          </button>
+          <div className="mt-4 flex w-full max-w-lg gap-2 px-2">
+            <button
+              type="button"
+              className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-800"
+              onClick={() => setViewerIndex(null)}
+            >
+              Cerrar
+            </button>
+            {canShare && (
+              <button
+                type="button"
+                className="flex-1 rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white shadow-sm active:bg-green-700"
+                onClick={() => viewerUrl && shareImage(viewerUrl)}
+              >
+                Compartir
+              </button>
+            )}
+          </div>
         </div>
       ) : null}
     </div>
