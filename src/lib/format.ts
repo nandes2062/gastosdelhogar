@@ -1,13 +1,14 @@
 import type { MonthKey } from "./types";
 
 /** Bolívares soberanos: prefijo "Bs." y separadores en español (ej. Bs. 1.234,56). */
-const amountFmt = new Intl.NumberFormat("es-VE", {
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-});
-
 export function formatMoney(amount: number): string {
-  return `Bs. ${amountFmt.format(amount)}`;
+  const isInteger = amount % 1 === 0;
+  const formatted = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: isInteger ? 0 : 2,
+    maximumFractionDigits: 2,
+    useGrouping: false,
+  }).format(amount);
+  return `Bs. ${formatted}`;
 }
 
 export function formatMonthLabel(monthKey: MonthKey): string {

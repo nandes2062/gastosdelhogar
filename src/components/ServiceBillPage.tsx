@@ -83,7 +83,7 @@ function ServiceMonthBody({
   const t = getBillPageTheme(def.theme);
 
   const [totalInput, setTotalInput] = useState(() =>
-    total != null ? String(Math.round(total)) : "",
+    total != null ? String(total) : "",
   );
   const [receipts, setReceipts] = useState<string[]>(() => [
     ...record.receiptDataUrls[serviceId],
