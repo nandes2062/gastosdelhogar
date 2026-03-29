@@ -88,6 +88,9 @@ function ServiceMonthBody({
   const [receipts, setReceipts] = useState<string[]>(() => [
     ...record.receiptDataUrls[serviceId],
   ]);
+  const [observationInput, setObservationInput] = useState(() => 
+    record.observations?.[serviceId] || ""
+  );
   const [savedToast, setSavedToast] = useState(false);
   const [showParticipantEditor, setShowParticipantEditor] = useState(false);
 
@@ -99,6 +102,7 @@ function ServiceMonthBody({
     upsertMonth(monthKey, {
       totals: { [serviceId]: nextTotal },
       receiptDataUrls: { [serviceId]: receipts },
+      observations: { [serviceId]: observationInput.trim() },
     });
     setSavedToast(true);
     window.setTimeout(() => setSavedToast(false), 2000);
@@ -180,6 +184,18 @@ function ServiceMonthBody({
         accent={def.theme}
         onChange={setReceipts}
       />
+
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-slate-800">
+          Observaciones (Opcional)
+        </label>
+        <textarea
+          className={`w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none ring-0 ${t.inputRing} min-h-[80px] resize-y`}
+          placeholder="Añadí notas o detalles adicionales aquí..."
+          value={observationInput}
+          onChange={(e) => setObservationInput(e.target.value)}
+        />
+      </div>
 
       <button type="button" onClick={save} className={t.saveBtn}>
         Guardar registro del mes

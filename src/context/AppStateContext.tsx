@@ -122,6 +122,10 @@ export function AppStateProvider({
             patch.activeServiceIds !== undefined
               ? patch.activeServiceIds
               : prevRec.activeServiceIds,
+          observations:
+            patch.observations !== undefined
+              ? { ...(prevRec.observations || {}), ...patch.observations }
+              : prevRec.observations,
         };
         return {
           ...prev,

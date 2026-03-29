@@ -39,6 +39,10 @@ export type MonthRecord = {
    * Si es undefined, se infiere según la historia o los globales.
    */
   activeServiceIds?: string[];
+  /**
+   * Observaciones o notas adicionales por servicio (keyed by service id).
+   */
+  observations?: Record<string, string>;
 };
 
 /** Actualización parcial de un mes. */
@@ -48,6 +52,7 @@ export type MonthRecordPatch = {
   payments?: Record<PersonId, PersonMonthPayment>;
   participants?: MonthParticipant[];
   activeServiceIds?: string[];
+  observations?: Record<string, string>;
 };
 
 /** Definición de un servicio guardado en estado (dinámico). */

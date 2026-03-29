@@ -30,6 +30,7 @@ export function emptyMonthRecord(serviceIds: string[]): MonthRecord {
     payments:        {},
     participants:    undefined,
     activeServiceIds: undefined,
+    observations:    {},
   };
 }
 
