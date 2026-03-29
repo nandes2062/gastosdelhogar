@@ -152,12 +152,21 @@ export function normalizeMonthRecord(raw: unknown): MonthRecord {
     activeServiceIds = raw.activeServiceIds.filter((x): x is string => typeof x === "string");
   }
 
+  // Observations
+  const observations: Record<string, string> = {};
+  if (isRaw(raw.observations)) {
+    for (const [k, v] of Object.entries(raw.observations)) {
+      if (typeof v === "string") observations[k] = v;
+    }
+  }
+
   return {
     totals,
     receiptDataUrls,
     payments:         normalizePayments(raw.payments),
     participants:     normalizeParticipants(raw.participants),
     activeServiceIds,
+    observations,
   };
 }
 

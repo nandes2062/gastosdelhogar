@@ -25,6 +25,7 @@ function deepCloneWithoutImages(state: AppState): AppState {
       receiptDataUrls: emptyUrls,
       participants: rec.participants ? JSON.parse(JSON.stringify(rec.participants)) : undefined,
       activeServiceIds: rec.activeServiceIds ? [...rec.activeServiceIds] : undefined,
+      observations: rec.observations ? { ...rec.observations } : undefined,
     };
   }
   return {
