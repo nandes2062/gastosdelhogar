@@ -212,7 +212,7 @@ export type PersonDebt = {
   personId: string;
   name: string;
   totalDebt: number;
-  months: string[];
+  months: { monthKey: string; amount: number }[];
 };
 
 /**
@@ -250,7 +250,7 @@ export function calculateTotalDebts(state: AppState): PersonDebt[] {
 
       if (owingInThisMonth && monthDebt > 0) {
         personsMap[p.id].totalDebt += monthDebt;
-        personsMap[p.id].months.push(monthKey);
+        personsMap[p.id].months.push({ monthKey, amount: monthDebt });
       }
     }
   }

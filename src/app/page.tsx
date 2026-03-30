@@ -122,6 +122,23 @@ export default function HomePage() {
         <ul className="space-y-3">
           {monthParticipants.map((person) => {
             const pay = getPayment(record, person.id);
+
+            // Calcular total por persona (mismo criterio que WhatsApp)
+            let personTotal = 0;
+            let servicesWithAmount = 0;
+            activeServices.forEach((svc) => {
+              if (person.participatesIn[svc.id] && record.totals[svc.id] != null) {
+                const share = sharePerPerson(
+                  state,
+                  selectedMonthKey,
+                  svc.id,
+                  person.id
+                );
+                personTotal += share;
+                servicesWithAmount++;
+              }
+            });
+
             return (
               <li
                 key={person.id}
@@ -165,6 +182,16 @@ export default function HomePage() {
                         ),
                       )}
                     </div>
+                    {servicesWithAmount >= 2 && (
+                      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+                        <span className="text-xs font-black uppercase tracking-widest text-slate-400">
+                          Total
+                        </span>
+                        <span className="text-base font-black text-slate-900">
+                          {formatMoney(personTotal)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </li>
