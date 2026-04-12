@@ -32,6 +32,7 @@ function readFileAsDataUrl(file: File): Promise<string> {
 export function ReceiptUpload({ label, dataUrls, accent, onChange }: Props) {
   const inputId = useId();
   const [error, setError] = useState<string | null>(null);
+  const [shareError, setShareError] = useState(false);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [canShare, setCanShare] = useState(false);
@@ -170,6 +171,11 @@ export function ReceiptUpload({ label, dataUrls, accent, onChange }: Props) {
           {error}
         </p>
       ) : null}
+      {shareError ? (
+        <p className="mt-2 text-sm text-red-600" role="alert">
+          No se pudo compartir la imagen.
+        </p>
+      ) : null}
 
       {dataUrls.length > 0 ? (
         <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -206,7 +212,7 @@ export function ReceiptUpload({ label, dataUrls, accent, onChange }: Props) {
                 {canShare && (
                   <button
                     type="button"
-                    onClick={() => shareImage(url)}
+                    onClick={() => void shareImage(url).then((ok) => { if (!ok) { setShareError(true); window.setTimeout(() => setShareError(false), 3000); } })}
                     className="flex items-center justify-center rounded-lg bg-emerald-600/90 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-600"
                     title="Compartir"
                   >
@@ -275,7 +281,7 @@ export function ReceiptUpload({ label, dataUrls, accent, onChange }: Props) {
               <button
                 type="button"
                 className="flex-1 rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white shadow-sm active:bg-green-700"
-                onClick={() => viewerUrl && shareImage(viewerUrl)}
+                onClick={() => viewerUrl && void shareImage(viewerUrl).then((ok) => { if (!ok) { setShareError(true); window.setTimeout(() => setShareError(false), 3000); } })}
               >
                 Compartir
               </button>

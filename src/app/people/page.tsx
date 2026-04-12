@@ -150,7 +150,7 @@ function PersonRow({
 
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-      <Avatar name={person.name} variant="neutral" />
+      <Avatar name={person.name} />
       <div className="min-w-0 flex-1">
         <p className="font-semibold text-slate-900">{person.name}</p>
         <p className="text-xs text-slate-500">

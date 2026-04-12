@@ -101,9 +101,9 @@ export default function BackupPage() {
 
     try {
       const text = await file.text();
-      const parsed = JSON.parse(text) as AppState;
+      const parsed: unknown = JSON.parse(text);
 
-      if (!parsed?.people || !parsed?.months) {
+      if (typeof parsed !== "object" || parsed === null || !("people" in parsed) || !("months" in parsed)) {
         throw new Error("El archivo no tiene el formato esperado.");
       }
 

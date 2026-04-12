@@ -42,7 +42,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`h-full ${outfit.className}`}>
+    <html lang="es" className={`h-full ${outfit.className}`} suppressHydrationWarning>
       <body className="min-h-dvh antialiased bg-white text-slate-900">
         <AppShell>{children}</AppShell>
       </body>

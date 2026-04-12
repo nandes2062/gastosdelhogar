@@ -13,15 +13,11 @@ type NavItem = {
   Icon: NavIcon;
 };
 
-// Fallback function for icons if not generic
-function serviceIcon(id: string): NavIcon {
-  const map: Record<string, NavIcon> = {
-    gas: IconFlame,
-    water: IconDroplet,
-    luz: IconBolt,
-  };
-  return map[id] ?? IconHome; // Using IconHome as fallback for unknown generic services; ideally we could create a generic one or read from emoji
-}
+const SERVICE_ICON_MAP: Record<string, NavIcon> = {
+  gas: IconFlame,
+  water: IconDroplet,
+  luz: IconBolt,
+};
 
 // Un icono genérico por si acaso, usando el emoji pero renderizándolo simple
 function GenericIcon({ emoji, active, className }: { emoji: string; active?: boolean; className?: string }) {
@@ -50,11 +46,8 @@ export function BottomNav() {
     href: `/s/${s.id}`,
     label: s.label,
     Icon: (props) => {
-      // Si tenemos un SVG específico (gas/agua/luz), lo usamos. Si no, usamos el emoji genérico.
-      if (["gas", "water", "luz"].includes(s.id)) {
-        const SpecificIcon = serviceIcon(s.id);
-        return <SpecificIcon {...props} />;
-      }
+      const SpecificIcon = SERVICE_ICON_MAP[s.id];
+      if (SpecificIcon) return <SpecificIcon {...props} />;
       return <GenericIcon emoji={s.emoji} {...props} />;
     },
   }));

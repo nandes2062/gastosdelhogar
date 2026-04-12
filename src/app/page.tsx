@@ -80,6 +80,7 @@ export default function HomePage() {
       <div className="flex justify-between items-center bg-slate-50 p-4 rounded-3xl border border-slate-100">
         <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">Servicios del mes</h2>
         <button
+          type="button"
           onClick={() => setManageServicesOpen(true)}
           className="text-xs font-bold text-brand-blue hover:underline"
         >
@@ -145,7 +146,7 @@ export default function HomePage() {
                 className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
               >
                 <div className="flex items-start gap-3">
-                  <Avatar name={person.name} variant="neutral" />
+                  <Avatar name={person.name} />
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-slate-900">{person.name}</p>
                     <div className="mt-3 space-y-2">
@@ -317,12 +318,14 @@ function ManageMonthServicesModal({
 
         <div className="mt-6 flex gap-3">
           <button
+            type="button"
             onClick={() => onSave(Array.from(localIds))}
             className="flex-1 rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white hover:bg-slate-800"
           >
             Guardar
           </button>
           <button
+            type="button"
             onClick={onClose}
             className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >

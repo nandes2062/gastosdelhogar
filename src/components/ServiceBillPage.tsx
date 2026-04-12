@@ -160,7 +160,7 @@ function ServiceMonthBody({
                 {participants.map((p) => (
                   <li key={p.id} className={t.listCard}>
                     <div className="flex min-w-0 items-center gap-2">
-                      <Avatar name={p.name} variant="neutral" />
+                      <Avatar name={p.name} />
                       <span className="truncate font-medium text-slate-900">
                         {p.name}
                       </span>
@@ -284,7 +284,7 @@ function ParticipantEditor({
       const userPctRaw = localActive[p.id].pct.trim();
       const pctToSave = userPctRaw === "" ? undefined : Number.parseFloat(userPctRaw.replace(",", "."));
       
-      if (pctToSave == null || isNaN(pctToSave) || pctToSave < 0) {
+      if (pctToSave == null || Number.isNaN(pctToSave) || pctToSave < 0) {
         delete basePercentages[serviceId];
       } else {
         basePercentages[serviceId] = pctToSave;
@@ -317,7 +317,7 @@ function ParticipantEditor({
                 onChange={() => toggle(p.id)}
                 className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
               />
-              <Avatar name={p.name} variant="neutral" />
+              <Avatar name={p.name} />
               <span className="text-sm font-medium text-slate-800">{p.name}</span>
             </label>
             {(localActive[p.id]?.active) && (
